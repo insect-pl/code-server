@@ -58,6 +58,15 @@ export class CodeServer {
       this.process = this.spawn()
     }
     const { address } = await this.process
+
+    // NOTE@jsjoeio - when enabled, we assume code-server is running
+    // via a reverse proxy with something like Caddy
+    // and being acdcessed at port.host i.e. 1337.localhost:80
+    if (process.env.USE_PROXY && process.env.USE_PROXY === "1") {
+      const uri = new URL(address)
+      return `${uri.port}.${uri.host}`
+    }
+
     return address
   }
 

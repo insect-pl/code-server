@@ -5,7 +5,8 @@
 Run [VS Code](https://github.com/Microsoft/vscode) on any machine anywhere and
 access it in the browser.
 
-![Screenshot](./assets/screenshot.png)
+![Screenshot](./assets/screenshot-1.png)
+![Screenshot](./assets/screenshot-2.png)
 
 ## Highlights
 
@@ -14,20 +15,16 @@ access it in the browser.
 - Preserve battery life when you're on the go; all intensive tasks run on your
   server
 
-> **Note**
-> To manage multiple IDEs, workspaces, and teams, see
-> our new project: [coder/coder](http://cdr.co/coder-github)
-
 ## Requirements
 
-See [requirements](requirements.md) for minimum specs, as well as instructions
+See [requirements](https://coder.com/docs/code-server/latest/requirements) for minimum specs, as well as instructions
 on how to set up a Google VM on which you can install code-server.
 
-**TL;DR:** Linux machine with WebSockets enabled, 1 GB RAM, and 2 CPUs
+**TL;DR:** Linux machine with WebSockets enabled, 1 GB RAM, and 2 vCPUs
 
 ## Getting started
 
-There are three ways to get started:
+There are four ways to get started:
 
 1. Using the [install
    script](https://github.com/coder/code-server/blob/main/install.sh), which
@@ -35,7 +32,8 @@ There are three ways to get started:
    possible.
 2. Manually [installing
    code-server](https://coder.com/docs/code-server/latest/install)
-3. Using our one-click buttons and guides to [deploy code-server to a cloud
+3. Deploy code-server to your team with [coder/coder](https://cdr.co/coder-github)
+4. Using our one-click buttons and guides to [deploy code-server to a cloud
    provider](https://github.com/coder/deploy-code-server) ⚡
 
 If you use the install script, you can preview what occurs during the install
@@ -53,6 +51,9 @@ curl -fsSL https://code-server.dev/install.sh | sh
 
 When done, the install script prints out instructions for running and starting
 code-server.
+
+> **Note**
+> To manage code-server for a team on your infrastructure, see: [coder/coder](https://cdr.co/coder-github)
 
 We also have an in-depth [setup and
 configuration](https://coder.com/docs/code-server/latest/guide) guide.
@@ -72,7 +73,7 @@ details.
 Interested in [working at Coder](https://coder.com/careers)? Check out [our open
 positions](https://coder.com/careers#openings)!
 
-## For Organizations
+## For Teams
 
-Want remote development for your organization or enterprise? Visit [our
-website](https://coder.com) to learn more about Coder.
+We develop [coder/coder](https://cdr.co/coder-github) to help teams to
+adopt remote development.

@@ -457,30 +457,37 @@ describe("isFile", () => {
   afterEach(async () => {
     await fs.rm(testDir, { recursive: true, force: true })
   })
-  it("should return false if the path doesn't exist", async () => {
+  it("should return false if is directory", async () => {
     expect(await util.isFile(testDir)).toBe(false)
   })
   it("should return true if is file", async () => {
     expect(await util.isFile(pathToFile)).toBe(true)
   })
-  it("should return false if error", async () => {
+  it("should return false if the path doesn't exist", async () => {
     expect(await util.isFile("fakefile.txt")).toBe(false)
   })
 })
 
-describe("humanPath", () => {
-  it("should return an empty string if no path provided", () => {
-    const mockHomedir = "/home/coder"
-    const actual = util.humanPath(mockHomedir)
-    const expected = ""
-    expect(actual).toBe(expected)
+describe("isDirectory", () => {
+  const testDir = path.join(tmpdir, "tests", "isDirectory")
+  let pathToFile = ""
+
+  beforeEach(async () => {
+    pathToFile = path.join(testDir, "foo.txt")
+    await fs.mkdir(testDir, { recursive: true })
+    await fs.writeFile(pathToFile, "hello")
   })
-  it("should replace the homedir with ~", () => {
-    const mockHomedir = "/home/coder"
-    const path = `${mockHomedir}/code-server`
-    const actual = util.humanPath(mockHomedir, path)
-    const expected = "~/code-server"
-    expect(actual).toBe(expected)
+  afterEach(async () => {
+    await fs.rm(testDir, { recursive: true, force: true })
+  })
+  it("should return false if is a file", async () => {
+    expect(await util.isDirectory(pathToFile)).toBe(false)
+  })
+  it("should return true if is directory", async () => {
+    expect(await util.isDirectory(testDir)).toBe(true)
+  })
+  it("should return false if the path doesn't exist", async () => {
+    expect(await util.isDirectory("fakefile.txt")).toBe(false)
   })
 })
 
@@ -576,5 +583,43 @@ describe("constructOpenOptions", () => {
     expect(args).toStrictEqual(["/c", "start", '""', "/b"])
     expect(command).toBe("cmd.exe")
     expect(urlSearch).toBe("?q=^&test")
+  })
+})
+
+describe("splitOnFirstEquals", () => {
+  const tests = [
+    {
+      name: "empty",
+      key: "",
+      value: "",
+    },
+    {
+      name: "split on first equals",
+      key: "foo",
+      value: "bar",
+    },
+    {
+      name: "split on first equals even with multiple equals",
+      key: "foo",
+      value: "bar=baz",
+    },
+    {
+      name: "split with empty value",
+      key: "foo",
+      value: "",
+    },
+    {
+      name: "split with no value",
+      key: "foo",
+      value: undefined,
+    },
+  ]
+  tests.forEach((test) => {
+    it("should ${test.name}", () => {
+      const input = test.key && typeof test.value !== "undefined" ? `${test.key}=${test.value}` : test.key
+      const [key, value] = util.splitOnFirstEquals(input)
+      expect(key).toStrictEqual(test.key)
+      expect(value).toStrictEqual(test.value || undefined)
+    })
   })
 })

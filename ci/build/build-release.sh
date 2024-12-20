@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This script requires vscode to be built with matching MINIFY.
+# Once both code-server and VS Code have been built, use this script to copy
+# them into a single directory (./release), prepare the package.json and
+# product.json, and add shrinkwraps.  This results in a generic NPM package that
+# we published to NPM and also use to compile platform-specific packages.
 
-# MINIFY controls whether minified vscode is bundled.
+# MINIFY controls whether minified VS Code is bundled. It must match the value
+# used when VS Code was built.
 MINIFY="${MINIFY-true}"
 
-# KEEP_MODULES controls whether the script cleans all node_modules requiring a yarn install
-# to run first.
+# node_modules are not copied by default.  Set KEEP_MODULES=1 to copy them.
 KEEP_MODULES="${KEEP_MODULES-0}"
 
 main() {
@@ -17,6 +20,8 @@ main() {
 
   VSCODE_SRC_PATH="lib/vscode"
   VSCODE_OUT_PATH="$RELEASE_PATH/lib/vscode"
+
+  create_shrinkwraps
 
   mkdir -p "$RELEASE_PATH"
 
@@ -44,7 +49,7 @@ bundle_code_server() {
   rsync typings/pluginapi.d.ts "$RELEASE_PATH/typings"
 
   # Adds the commit to package.json
-  jq --slurp '.[0] * .[1]' package.json <(
+  jq --slurp '(.[0] | del(.scripts,.jest,.devDependencies)) * .[1]' package.json <(
     cat << EOF
   {
     "commit": "$(git rev-parse HEAD)",
@@ -54,24 +59,12 @@ bundle_code_server() {
   }
 EOF
   ) > "$RELEASE_PATH/package.json"
-  rsync yarn.lock "$RELEASE_PATH"
-
-  # To ensure deterministic dependency versions (even when code-server is installed with NPM), we seed
-  # an npm-shrinkwrap file from our yarn lockfile and the current node-modules installed.
-  synp --source-file yarn.lock
-  npm shrinkwrap
-  # HACK@edvincent: The shrinkwrap file will contain the devDependencies, which by default
-  # are installed if present in a lockfile. To avoid every user having to specify --production
-  # to skip them, we carefully remove them from the shrinkwrap file.
-  json -f npm-shrinkwrap.json -I -e "Object.keys(this.dependencies).forEach(dependency => { if (this.dependencies[dependency].dev) { delete this.dependencies[dependency] } } )"
   mv npm-shrinkwrap.json "$RELEASE_PATH"
 
   rsync ci/build/npm-postinstall.sh "$RELEASE_PATH/postinstall.sh"
 
   if [ "$KEEP_MODULES" = 1 ]; then
     rsync node_modules/ "$RELEASE_PATH/node_modules"
-    mkdir -p "$RELEASE_PATH/lib"
-    rsync ./lib/coder-cloud-agent "$RELEASE_PATH/lib"
   fi
 }
 
@@ -98,21 +91,49 @@ bundle_vscode() {
 
   rsync "${rsync_opts[@]}" ./lib/vscode-reh-web-*/ "$VSCODE_OUT_PATH"
 
-  # Use the package.json for the web/remote server.  It does not have the right
-  # version though so pull that from the main package.json.
-  jq --slurp '.[0] * {version: .[1].version}' \
+  # Merge the package.json for the web/remote server so we can include
+  # dependencies, since we want to ship this via NPM.
+  jq --slurp '.[0] * .[1]' \
     "$VSCODE_SRC_PATH/remote/package.json" \
-    "$VSCODE_SRC_PATH/package.json" > "$VSCODE_OUT_PATH/package.json"
-
-  rsync "$VSCODE_SRC_PATH/remote/yarn.lock" "$VSCODE_OUT_PATH/yarn.lock"
+    "$VSCODE_OUT_PATH/package.json" > "$VSCODE_OUT_PATH/package.json.merged"
+  mv "$VSCODE_OUT_PATH/package.json.merged" "$VSCODE_OUT_PATH/package.json"
+  cp "$VSCODE_SRC_PATH/remote/npm-shrinkwrap.json" "$VSCODE_OUT_PATH/npm-shrinkwrap.json"
 
   # Include global extension dependencies as well.
   rsync "$VSCODE_SRC_PATH/extensions/package.json" "$VSCODE_OUT_PATH/extensions/package.json"
-  rsync "$VSCODE_SRC_PATH/extensions/yarn.lock" "$VSCODE_OUT_PATH/extensions/yarn.lock"
+  cp "$VSCODE_SRC_PATH/extensions/npm-shrinkwrap.json" "$VSCODE_OUT_PATH/extensions/npm-shrinkwrap.json"
   rsync "$VSCODE_SRC_PATH/extensions/postinstall.mjs" "$VSCODE_OUT_PATH/extensions/postinstall.mjs"
+}
 
-  pushd "$VSCODE_OUT_PATH"
-  symlink_asar
+create_shrinkwraps() {
+  # package-lock.json files (used to ensure deterministic versions of
+  # dependencies) are not packaged when publishing to the NPM registry.
+  #
+  # To ensure deterministic dependency versions (even when code-server is
+  # installed with NPM), we create an npm-shrinkwrap.json file from the
+  # currently installed node_modules. This ensures the versions used from
+  # development (that the package-lock.json guarantees) are also the ones
+  # installed by end-users.  These will include devDependencies, but those will
+  # be ignored when installing globally (for code-server), and because we use
+  # --omit=dev (for VS Code).
+
+  # We first generate the shrinkwrap file for code-server itself - which is the
+  # current directory.
+  cp package-lock.json package-lock.json.temp
+  npm shrinkwrap
+  mv package-lock.json.temp package-lock.json
+
+  # Then the shrinkwrap files for the bundled VS Code.
+  pushd "$VSCODE_SRC_PATH/remote/"
+  cp package-lock.json package-lock.json.temp
+  npm shrinkwrap
+  mv package-lock.json.temp package-lock.json
+  popd
+
+  pushd "$VSCODE_SRC_PATH/extensions/"
+  cp package-lock.json package-lock.json.temp
+  npm shrinkwrap
+  mv package-lock.json.temp package-lock.json
   popd
 }
 

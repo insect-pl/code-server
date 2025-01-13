@@ -19,12 +19,6 @@ main() {
   # This is because npm won't publish your package unless it's a new version.
   # i.e. for development, we bump the version to <current version>-<pr number>-<commit sha>
   # example: "version": "4.0.1-4769-ad7b23cfe6ffd72914e34781ef7721b129a23040"
-  # We need the current package.json VERSION
-  if ! is_env_var_set "VERSION"; then
-    echo "VERSION is not set. Cannot publish to npm without VERSION."
-    exit 1
-  fi
-
   # We use this to grab the PR_NUMBER
   if ! is_env_var_set "GITHUB_REF"; then
     echo "GITHUB_REF is not set. Are you running this locally? We rely on values provided by GitHub."
@@ -59,13 +53,14 @@ main() {
   # This string is used to determine how we should tag the npm release.
   # Environment can be one of three choices:
   # "development" - this means we tag with the PR number, allowing
-  # a developer to install this version with `yarn add code-server@<pr-number>`
+  # a developer to install this version with `npm install code-server@<pr-number>`
   # "staging" - this means we tag with `beta`, allowing
-  # a developer to install this version with `yarn add code-server@beta`
+  # a developer to install this version with `npm install code-server@beta`
   # "production" - this means we tag with `latest` (default), allowing
-  # a developer to install this version with `yarn add code-server@latest`
+  # a developer to install this version with `npm install code-server@latest`
   if ! is_env_var_set "NPM_ENVIRONMENT"; then
-    echo "NPM_ENVIRONMENT is not set. Determining in script based on GITHUB environment variables."
+    echo "NPM_ENVIRONMENT is not set."
+    echo "Determining in script based on GITHUB environment variables."
 
     if [[ "$GITHUB_EVENT_NAME" == 'push' && "$GITHUB_REF" == 'refs/heads/main' ]]; then
       NPM_ENVIRONMENT="staging"
@@ -73,17 +68,12 @@ main() {
       NPM_ENVIRONMENT="development"
     fi
 
-    echo "Using npm environment: $NPM_ENVIRONMENT"
   fi
 
   # NOTE@jsjoeio - this script assumes we have the artifact downloaded on disk
   # That happens in CI as a step before we run this.
   # https://github.com/actions/upload-artifact/issues/38
   tar -xzf release-npm-package/package.tar.gz
-
-  # Ignore symlink when publishing npm package
-  # See: https://github.com/coder/code-server/pull/3935
-  echo "node_modules.asar" > release/.npmignore
 
   # We use this to set the name of the package in the
   # package.json
@@ -96,19 +86,17 @@ main() {
   if [[ "$NPM_ENVIRONMENT" == "production" ]]; then
     NPM_VERSION="$VERSION"
     # This means the npm version will be published as "stable"
-    # and installed when a user runs `yarn install code-server`
+    # and installed when a user runs `npm install code-server`
     NPM_TAG="latest"
   else
     COMMIT_SHA="$GITHUB_SHA"
-    echo "Not a production environment"
-    echo "Found environment: $NPM_ENVIRONMENT"
-    echo "Manually bumping npm version..."
 
     if [[ "$NPM_ENVIRONMENT" == "staging" ]]; then
       NPM_VERSION="$VERSION-beta-$COMMIT_SHA"
       # This means the npm version will be tagged with "beta"
-      # and installed when a user runs `yarn install code-server@beta`
+      # and installed when a user runs `npm install code-server@beta`
       NPM_TAG="beta"
+      PACKAGE_NAME="@coder/code-server-pr"
     fi
 
     if [[ "$NPM_ENVIRONMENT" == "development" ]]; then
@@ -117,12 +105,14 @@ main() {
       NPM_VERSION="$VERSION-$PR_NUMBER-$COMMIT_SHA"
       PACKAGE_NAME="@coder/code-server-pr"
       # This means the npm version will be tagged with "<pr number>"
-      # and installed when a user runs `yarn install code-server@<pr number>`
+      # and installed when a user runs `npm install code-server@<pr number>`
       NPM_TAG="$PR_NUMBER"
     fi
 
-    echo "using tag: $NPM_TAG"
-    echo "using package name: $PACKAGE_NAME"
+    echo "- tag: $NPM_TAG"
+    echo "- version: $NPM_VERSION"
+    echo "- package name: $PACKAGE_NAME"
+    echo "- npm environment: $NPM_ENVIRONMENT"
 
     # We modify the version in the package.json
     # to be the current version + the PR number + commit SHA
@@ -130,10 +120,7 @@ main() {
     # Example: "version": "4.0.1-4769-ad7b23cfe6ffd72914e34781ef7721b129a23040"
     # Example: "version": "4.0.1-beta-ad7b23cfe6ffd72914e34781ef7721b129a23040"
     pushd release
-    # NOTE@jsjoeio
-    # I originally tried to use `yarn version` but ran into issues and abandoned it.
     npm version "$NPM_VERSION"
-    # NOTE@jsjoeio
     # Use the development package name
     # This is so we don't clutter the code-server versions on npm
     # with development versions.
@@ -145,19 +132,18 @@ main() {
   fi
 
   # We need to make sure we haven't already published the version.
-  # This is because npm view won't exit with non-zero so we have
-  # to check the output.
+  # If we get error, continue with script because we want to publish
+  # If version is valid, we check if we're publishing the same one
   local hasVersion
-  hasVersion=$(npm view "code-server@$NPM_VERSION" version)
-  if [[ $hasVersion == "$NPM_VERSION" ]]; then
-    echo "$NPM_VERSION is already published"
+  if hasVersion=$(npm view "$PACKAGE_NAME@$NPM_VERSION" version 2> /dev/null) && [[ $hasVersion == "$NPM_VERSION" ]]; then
+    echo "$NPM_VERSION is already published under $PACKAGE_NAME"
     return
   fi
 
-  # NOTE@jsjoeio
   # Since the dev builds are scoped to @coder
   # We pass --access public to ensure npm knows it's not private.
-  yarn publish --non-interactive release --tag "$NPM_TAG" --access public
+  cd release
+  npm publish --tag "$NPM_TAG" --access public
 }
 
 main "$@"

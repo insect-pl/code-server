@@ -6,7 +6,7 @@ Index: code-server/lib/vscode/src/vs/base/common/product.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/base/common/product.ts
 +++ code-server/lib/vscode/src/vs/base/common/product.ts
-@@ -36,6 +36,10 @@ export interface IProductConfiguration {
+@@ -60,6 +60,10 @@ export interface IProductConfiguration {
  	readonly updateEndpoint?: string
  	readonly logoutEndpoint?: string
  	readonly proxyEndpointTemplate?: string
@@ -17,26 +17,11 @@ Index: code-server/lib/vscode/src/vs/base/common/product.ts
  
  	readonly version: string;
  	readonly date?: string;
-Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-===================================================================
---- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
-+++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -315,6 +315,10 @@ export class WebClientServer {
- 				updateEndpoint: !this._environmentService.args['disable-update-check'] ? base + '/update/check' : undefined,
- 				logoutEndpoint: this._environmentService.args['auth'] ? base + '/logout' : undefined,
- 				proxyEndpointTemplate: base + '/proxy/{{port}}',
-+				serviceWorker: {
-+					scope: vscodeBase + '/',
-+					path: base + '/_static/out/browser/serviceWorker.js',
-+				},
- 				embedderIdentifier: 'server-distro',
- 				extensionsGallery: this._productService.extensionsGallery,
- 			},
 Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/workbench/browser/client.ts
 +++ code-server/lib/vscode/src/vs/workbench/browser/client.ts
-@@ -90,6 +90,10 @@ export class CodeServerClient extends Di
+@@ -89,6 +89,10 @@ export class CodeServerClient extends Di
  		if (this.productService.logoutEndpoint) {
  			this.addLogoutCommand(this.productService.logoutEndpoint);
  		}
@@ -47,7 +32,7 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
  	}
  
  	private checkUpdates(updateEndpoint: string) {
-@@ -162,4 +166,17 @@ export class CodeServerClient extends Di
+@@ -161,4 +165,17 @@ export class CodeServerClient extends Di
  			});
  		}
  	}
@@ -65,3 +50,18 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
 +		}
 +	}
  }
+Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
++++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
+@@ -315,6 +315,10 @@ export class WebClientServer {
+ 			updateEndpoint: !this._environmentService.args['disable-update-check'] ? base + '/update/check' : undefined,
+ 			logoutEndpoint: this._environmentService.args['auth'] && this._environmentService.args['auth'] !== "none" ? base + '/logout' : undefined,
+ 			proxyEndpointTemplate: process.env.VSCODE_PROXY_URI ?? base + '/proxy/{{port}}/',
++			serviceWorker: {
++				scope: vscodeBase + '/',
++				path: base + '/_static/out/browser/serviceWorker.js',
++			},
+ 			embedderIdentifier: 'server-distro',
+ 			extensionsGallery: this._productService.extensionsGallery,
+ 		} satisfies Partial<IProductConfiguration>;

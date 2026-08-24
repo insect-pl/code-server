@@ -32,8 +32,8 @@ Code v1.134.0
   to VS Code. It requires `flag=value` or simply `flag` for booleans. For
   example: `--vscode-option enable-sandbox --vscode-option agents=true`. The
   `VSCODE_OPTIONS` environment variable may also be used. For example:
-  `VSCODE_OPTIONS="enable-sandbox agents=true"`. Note that this code-server
-  simply splits this variable on spaces and is not aware of quoting.
+  `VSCODE_OPTIONS="enable-sandbox agents=true"`. Note that code-server simply
+  splits this variable on spaces and is not aware of quoting.
 
 ### Changed
 

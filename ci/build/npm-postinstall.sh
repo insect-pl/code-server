@@ -18,7 +18,7 @@ symlink() {
   dest="$2"
   rm -rf "$dest"
   case $OS in
-    windows) mklink /J "$dest" "$source" ;;
+    windows) cmd //c mklink //J "$dest" "$source" ;;
     *) ln -s "$source" "$dest" ;;
   esac
 }
